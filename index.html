@@ -27,6 +27,21 @@
         </form>
       </section>
       <p id="message" role="status" aria-live="polite"></p>
+      <section class="panel board-filters" aria-label="Search and filter tasks">
+        <div class="filter-field">
+          <label for="task-search">Search tasks</label>
+          <input type="search" id="task-search" name="query" placeholder="Search title or description">
+        </div>
+        <div class="filter-field">
+          <label for="status-filter">Status</label>
+          <select id="status-filter" name="status">
+            <option value="all">All</option>
+            <option value="todo">To do</option>
+            <option value="doing">Doing</option>
+            <option value="done">Done</option>
+          </select>
+        </div>
+      </section>
       <section class="board" aria-label="Task board">
         <div class="column" data-status="todo">
           <h2>To do <span class="count" id="todo-count">0</span></h2>
