@@ -1,9 +1,17 @@
-import { STATUSES, createTask, deleteTask, loadTasks, saveTasks, updateTask } from "./tasks.js";
+import { STATUSES, createTask, deleteTask, filterTasks, loadTasks, saveTasks, updateTask } from "./tasks.js";
 
 const createForm = document.querySelector("#create-form");
 const editForm = document.querySelector("#edit-form");
 const editDialog = document.querySelector("#edit-dialog");
 const message = document.querySelector("#message");
+const searchInput = document.querySelector("#task-search");
+const statusFilter = document.querySelector("#status-filter");
+const emptyResult = document.createElement("p");
+emptyResult.className = "empty";
+emptyResult.textContent = "No tasks match your search and status filter.";
+emptyResult.setAttribute("role", "status");
+emptyResult.hidden = true;
+document.querySelector(".board").before(emptyResult);
 let tasks = [];
 
 function showMessage(text, isError = false) {
@@ -84,21 +92,26 @@ function createCard(task) {
 }
 
 function render() {
+  const filteredTasks = filterTasks(tasks, searchInput.value, statusFilter.value);
+  emptyResult.hidden = filteredTasks.length !== 0;
   for (const status of STATUSES) {
     const list = document.querySelector(`#${status}-list`);
     list.replaceChildren();
-    const visible = tasks.filter((task) => task.status === status);
+    const visible = filteredTasks.filter((task) => task.status === status);
     document.querySelector(`#${status}-count`).textContent = String(visible.length);
     if (visible.length === 0) {
       const empty = document.createElement("p");
       empty.className = "empty";
-      empty.textContent = "No tasks yet";
+      empty.textContent = "No tasks in this column";
       list.append(empty);
     } else {
       for (const task of visible) list.append(createCard(task));
     }
   }
 }
+
+searchInput.addEventListener("input", render);
+statusFilter.addEventListener("change", render);
 
 createForm.addEventListener("submit", (event) => {
   event.preventDefault();
