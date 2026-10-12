@@ -63,6 +63,15 @@ export function deleteTask(tasks, id) {
   return tasks.filter((task) => task.id !== id);
 }
 
+export function filterTasks(tasks, query = "", status = "all") {
+  const normalizedQuery = query.trim().toLowerCase();
+  const normalizedStatus = status.toLowerCase();
+  return tasks.filter((task) =>
+    (normalizedStatus === "all" || task.status === normalizedStatus)
+    && (task.title.toLowerCase().includes(normalizedQuery)
+      || task.description.toLowerCase().includes(normalizedQuery)));
+}
+
 export function parseTasks(raw) {
   const parsed = JSON.parse(raw);
   if (!Array.isArray(parsed)) throw new Error("Saved tasks must be a list");
