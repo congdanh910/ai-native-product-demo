@@ -1,4 +1,4 @@
-import { STATUSES, createTask, deleteTask, loadTasks, saveTasks, updateTask } from "./tasks.js";
+import { PRIORITY_OPTIONS, STATUSES, createTask, deleteTask, loadTasks, saveTasks, updateTask } from "./tasks.js";
 
 const createForm = document.querySelector("#create-form");
 const editForm = document.querySelector("#edit-form");
@@ -92,7 +92,10 @@ function render() {
   for (const status of STATUSES) {
     const list = document.querySelector(`#${status}-list`);
     list.replaceChildren();
-    const visible = tasks.filter((task) => task.status === status);
+    const visible = tasks.filter((task) => task.status === status).sort((a, b) =>
+      PRIORITY_OPTIONS.indexOf(b.priority) - PRIORITY_OPTIONS.indexOf(a.priority)
+      || Date.parse(a.createdAt) - Date.parse(b.createdAt)
+      || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     document.querySelector(`#${status}-count`).textContent = String(visible.length);
     if (visible.length === 0) {
       const empty = document.createElement("p");
