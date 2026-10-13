@@ -71,6 +71,71 @@ test("TC-4: creation form offers Low, Medium, and High with Medium selected", ()
   assert.deepEqual(options.map((option) => option.selected), [false, true, false]);
 });
 
+test("TC-5: a High-priority task card displays a styled High label", async () => {
+  class Element {
+    constructor(tagName = "div") {
+      this.tagName = tagName;
+      this.children = [];
+      this.className = "";
+      this.attributes = new Map();
+      this.ownText = "";
+      this.classList = {
+        add: (...names) => { this.className = [...new Set([...this.className.split(/\s+/).filter(Boolean), ...names])].join(" "); },
+      };
+    }
+
+    set textContent(value) { this.ownText = String(value); this.children = []; }
+    get textContent() {
+      return this.ownText + this.children.map((child) => child.textContent).join("");
+    }
+    append(...children) { this.children.push(...children); }
+    replaceChildren(...children) { this.children = children; this.ownText = ""; }
+    setAttribute(name, value) { this.attributes.set(name, String(value)); }
+    getAttribute(name) { return this.attributes.get(name) ?? null; }
+    addEventListener() {}
+  }
+
+  const elements = new Map([
+    "#create-form", "#edit-form", "#edit-dialog", "#message", "#cancel-edit",
+    "#todo-list", "#doing-list", "#done-list",
+    "#todo-count", "#doing-count", "#done-count",
+  ].map((selector) => [selector, new Element()]));
+  const task = {
+    id: "task-high", title: "Review proposal", description: "Read the draft",
+    status: "todo", priority: "High",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+  const previousDocument = globalThis.document;
+  const previousStorage = globalThis.localStorage;
+  globalThis.document = {
+    querySelector: (selector) => elements.get(selector) ?? null,
+    createElement: (tagName) => new Element(tagName),
+  };
+  globalThis.localStorage = {
+    getItem: (key) => key === STORAGE_KEY ? JSON.stringify([task]) : null,
+  };
+
+  try {
+    await import("../src/app.js");
+    const [card] = elements.get("#todo-list").children;
+    assert.equal(card?.className, "task-card", "task renders in the To do column");
+
+    const descendants = (node) => node.children.flatMap((child) => [child, ...descendants(child)]);
+    const priorityLabel = descendants(card).find((element) =>
+      element.textContent === "High" && element.children.length === 0);
+    assert.ok(priorityLabel, "card contains a visible High priority label");
+    assert.ok(priorityLabel.className.trim(), "priority label has a class for consistent styling");
+    assert.equal(priorityLabel.getAttribute("hidden"), null, "priority label is not hidden");
+    assert.notEqual(priorityLabel.getAttribute("aria-hidden"), "true", "priority label is exposed to users");
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = previousStorage;
+  }
+});
+
 test("edit and move preserve the original task", () => {
   const original = makeTask();
   const changed = updateTask(original, "task-1", { title: "Updated", status: "doing" }, {
