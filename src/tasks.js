@@ -17,6 +17,12 @@ export function validateTask(task) {
   if (!STATUSES.includes(task.status)) {
     throw new Error("Task status is invalid");
   }
+  if (typeof task.archived !== "boolean") {
+    throw new Error("Task archived must be a boolean");
+  }
+  if (task.archived && task.status !== "done") {
+    throw new Error("Only done tasks can be archived");
+  }
   for (const field of ["createdAt", "updatedAt"]) {
     if (typeof task[field] !== "string" || Number.isNaN(Date.parse(task[field]))) {
       throw new Error(`Task ${field} is invalid`);
@@ -35,6 +41,7 @@ export function createTask(tasks, input, { id = crypto.randomUUID(), now = new D
     title,
     description: String(input.description ?? "").trim(),
     status: "todo",
+    archived: false,
     createdAt: timestamp,
     updatedAt: timestamp,
   });
@@ -53,6 +60,9 @@ export function updateTask(tasks, id, changes, { now = new Date() } = {}) {
   if (Object.hasOwn(changes, "status")) {
     allowed.status = changes.status;
   }
+  if (Object.hasOwn(changes, "archived")) {
+    allowed.archived = changes.archived;
+  }
   return tasks.map((task) => task.id === id
     ? validateTask({ ...task, ...allowed, updatedAt: now.toISOString() })
     : task);
@@ -68,6 +78,10 @@ export function parseTasks(raw) {
   if (!Array.isArray(parsed)) throw new Error("Saved tasks must be a list");
   const ids = new Set();
   return parsed.map((task) => {
+    if (task && typeof task === "object" && !Array.isArray(task)
+      && !Object.hasOwn(task, "archived")) {
+      task = { ...task, archived: false };
+    }
     validateTask(task);
     if (ids.has(task.id)) throw new Error("Duplicate task id");
     ids.add(task.id);

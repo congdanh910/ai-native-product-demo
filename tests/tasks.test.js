@@ -12,7 +12,7 @@ const makeTask = () => createTask([], { title: " First task ", description: " De
 
 test("create task trims input and starts in todo", () => {
   assert.deepEqual(makeTask(), [{
-    id: "task-1", title: "First task", description: "Details", status: "todo",
+    id: "task-1", title: "First task", description: "Details", status: "todo", archived: false,
     createdAt: fixedTime.toISOString(), updatedAt: fixedTime.toISOString(),
   }]);
   assert.throws(() => createTask([], { title: "   " }), /Title is required/);
@@ -47,4 +47,79 @@ test("storage roundtrip validates shape and unique ids", () => {
   assert.ok(memory.has(STORAGE_KEY));
   assert.throws(() => parseTasks(JSON.stringify([...makeTask(), ...makeTask()])), /Duplicate/);
   assert.throws(() => parseTasks("{}"), /list/);
+});
+
+test("legacy tasks load as active without rewriting storage", () => {
+  const legacy = { ...makeTask()[0] };
+  delete legacy.archived;
+  const raw = JSON.stringify([legacy]);
+  const memory = new Map([[STORAGE_KEY, raw]]);
+  let writes = 0;
+  const storage = {
+    getItem: (key) => memory.get(key) ?? null,
+    setItem: (key, value) => { writes += 1; memory.set(key, value); },
+  };
+  assert.deepEqual(loadTasks(storage), makeTask());
+  assert.equal(memory.get(STORAGE_KEY), raw);
+  assert.equal(writes, 0);
+});
+
+test("invalid archive data is rejected without changing saved storage", () => {
+  const invalidTasks = [
+    ...[null, 0, 1, "false", "true", {}, []].map((archived) => ({
+      ...makeTask()[0], archived,
+    })),
+    ...["todo", "doing"].map((status) => ({ ...makeTask()[0], status, archived: true })),
+  ];
+  for (const task of invalidTasks) {
+    const raw = JSON.stringify([task]);
+    const memory = new Map([[STORAGE_KEY, raw]]);
+    let writes = 0;
+    const storage = {
+      getItem: (key) => memory.get(key) ?? null,
+      setItem: (key, value) => { writes += 1; memory.set(key, value); },
+    };
+    assert.throws(() => loadTasks(storage), /archived/);
+    assert.throws(() => saveTasks(storage, [task]), /archived/);
+    assert.equal(memory.get(STORAGE_KEY), raw);
+    assert.equal(writes, 0);
+  }
+});
+
+test("archive updates require done and boolean values without mutating tasks", () => {
+  const original = makeTask();
+  const options = { now: new Date("2026-01-02T00:00:00.000Z") };
+  for (const status of ["todo", "doing"]) {
+    const tasks = updateTask(original, "task-1", { status }, options);
+    assert.throws(() => updateTask(tasks, "task-1", { archived: true }, options), /done/);
+    assert.equal(tasks[0].archived, false);
+  }
+  for (const archived of [undefined, null, 0, "true", {}, []]) {
+    assert.throws(() => updateTask(original, "task-1", { archived }, options), /boolean/);
+  }
+  assert.equal(original[0].archived, false);
+});
+
+test("archived tasks persist, preserve archive on edits, and restore to done", () => {
+  const options = { now: new Date("2026-01-02T00:00:00.000Z") };
+  const original = makeTask();
+  const archived = updateTask(original, "task-1", { status: "done", archived: true }, options);
+  const memory = new Map();
+  const storage = {
+    getItem: (key) => memory.get(key) ?? null,
+    setItem: (key, value) => memory.set(key, value),
+  };
+  saveTasks(storage, archived);
+  assert.deepEqual(loadTasks(storage), archived);
+  const edited = updateTask(archived, "task-1", { title: "Edited", description: "New details" }, options);
+  assert.equal(edited[0].archived, true);
+  assert.equal(archived[0].title, "First task");
+  for (const status of ["todo", "doing"]) {
+    assert.throws(() => updateTask(archived, "task-1", { status }, options), /done/);
+  }
+  const restored = updateTask(archived, "task-1", { archived: false }, options);
+  assert.deepEqual(restored[0], { ...archived[0], archived: false });
+  assert.equal(restored[0].status, "done");
+  assert.equal(archived[0].archived, true);
+  assert.equal(original[0].status, "todo");
 });
