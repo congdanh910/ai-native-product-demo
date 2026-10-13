@@ -32,6 +32,21 @@ test("TC-2: new task defaults to Medium priority", () => {
   assert.equal(tasks[0].priority, "Medium");
 });
 
+test("TC-3: stored task without priority parses as Medium", () => {
+  const storedTask = {
+    id: "task-1",
+    title: "Existing task",
+    description: "Stored before priorities",
+    status: "doing",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-02T00:00:00.000Z",
+  };
+
+  assert.deepEqual(parseTasks(JSON.stringify([storedTask])), [
+    { ...storedTask, priority: "Medium" },
+  ]);
+});
+
 test("edit and move preserve the original task", () => {
   const original = makeTask();
   const changed = updateTask(original, "task-1", { title: "Updated", status: "doing" }, {
