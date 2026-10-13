@@ -1,4 +1,7 @@
-import { STATUSES, createTask, deleteTask, loadTasks, saveTasks, updateTask } from "./tasks.js";
+import {
+  STATUSES, archiveTask, countActiveTasks, createTask, deleteTask, loadTasks,
+  restoreTask, saveTasks, updateTask,
+} from "./tasks.js";
 
 const createForm = document.querySelector("#create-form");
 const editForm = document.querySelector("#edit-form");
@@ -37,36 +40,53 @@ function createCard(task) {
 
   const controls = document.createElement("div");
   controls.className = "task-controls";
-  const label = document.createElement("label");
-  label.textContent = "Status ";
-  const select = document.createElement("select");
-  select.setAttribute("aria-label", `Status for ${task.title}`);
-  for (const status of STATUSES) {
-    const option = document.createElement("option");
-    option.value = status;
-    option.textContent = status === "todo" ? "To do" : status === "doing" ? "Doing" : "Done";
-    select.append(option);
-  }
-  select.value = task.status;
-  select.addEventListener("change", () => applyChange(
-    (current) => updateTask(current, task.id, { status: select.value }),
-    "Task moved",
-  ));
-  label.append(select);
-  controls.append(label);
+  if (!task.archived) {
+    const label = document.createElement("label");
+    label.textContent = "Status ";
+    const select = document.createElement("select");
+    select.setAttribute("aria-label", `Status for ${task.title}`);
+    for (const status of STATUSES) {
+      const option = document.createElement("option");
+      option.value = status;
+      option.textContent = status === "todo" ? "To do" : status === "doing" ? "Doing" : "Done";
+      select.append(option);
+    }
+    select.value = task.status;
+    select.addEventListener("change", () => applyChange(
+      (current) => updateTask(current, task.id, { status: select.value }),
+      "Task moved",
+    ));
+    label.append(select);
+    controls.append(label);
 
-  const edit = document.createElement("button");
-  edit.type = "button";
-  edit.className = "secondary";
-  edit.textContent = "Edit";
-  edit.setAttribute("aria-label", `Edit ${task.title}`);
-  edit.addEventListener("click", () => {
-    editForm.elements.id.value = task.id;
-    editForm.elements.title.value = task.title;
-    editForm.elements.description.value = task.description;
-    editDialog.showModal();
-  });
-  controls.append(edit);
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "secondary";
+    edit.textContent = "Edit";
+    edit.setAttribute("aria-label", `Edit ${task.title}`);
+    edit.addEventListener("click", () => {
+      editForm.elements.id.value = task.id;
+      editForm.elements.title.value = task.title;
+      editForm.elements.description.value = task.description;
+      editDialog.showModal();
+    });
+    controls.append(edit);
+  }
+
+  if (task.archived || task.status === "done") {
+    const archiveAction = document.createElement("button");
+    archiveAction.type = "button";
+    archiveAction.className = "secondary";
+    archiveAction.textContent = task.archived ? "Restore" : "Archive";
+    archiveAction.setAttribute("aria-label", `${archiveAction.textContent} ${task.title}`);
+    archiveAction.addEventListener("click", () => applyChange(
+      (current) => task.archived
+        ? restoreTask(current, task.id)
+        : archiveTask(current, task.id),
+      task.archived ? "Task restored to Done" : "Task archived",
+    ));
+    controls.append(archiveAction);
+  }
 
   const remove = document.createElement("button");
   remove.type = "button";
@@ -84,11 +104,12 @@ function createCard(task) {
 }
 
 function render() {
+  const counts = countActiveTasks(tasks);
   for (const status of STATUSES) {
     const list = document.querySelector(`#${status}-list`);
     list.replaceChildren();
-    const visible = tasks.filter((task) => task.status === status);
-    document.querySelector(`#${status}-count`).textContent = String(visible.length);
+    const visible = tasks.filter((task) => !task.archived && task.status === status);
+    document.querySelector(`#${status}-count`).textContent = String(counts[status]);
     if (visible.length === 0) {
       const empty = document.createElement("p");
       empty.className = "empty";
@@ -97,6 +118,18 @@ function render() {
     } else {
       for (const task of visible) list.append(createCard(task));
     }
+  }
+  const archiveList = document.querySelector("#archive-list");
+  const archived = tasks.filter((task) => task.archived);
+  archiveList.replaceChildren();
+  document.querySelector("#archive-count").textContent = String(archived.length);
+  if (archived.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "No archived tasks";
+    archiveList.append(empty);
+  } else {
+    for (const task of archived) archiveList.append(createCard(task));
   }
 }
 
