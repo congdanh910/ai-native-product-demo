@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
+import vm from "node:vm";
+import * as taskModel from "../src/tasks.js";
 
 import {
   STORAGE_KEY, backupFilename, createTask, deleteTask, loadTasks, parseBackup, parseTasks, saveTasks,
@@ -132,4 +135,112 @@ test("invalid backups leave existing tasks and storage untouched", () => {
     assert.equal(memory.get(STORAGE_KEY), saved);
     assert.deepEqual(loadTasks(storage), original);
   }
+});
+
+function importHarness({ confirmed = true, saveFails = false } = {}) {
+  function element() {
+    return {
+      children: [], listeners: {}, value: "", disabled: false,
+      classList: { toggle() {} },
+      addEventListener(type, handler) { this.listeners[type] = handler; },
+      append(child) { this.children.push(child); },
+      replaceChildren() { this.children = []; },
+      setAttribute() {},
+    };
+  }
+  const nodes = new Map();
+  const document = {
+    querySelector(selector) {
+      if (!nodes.has(selector)) nodes.set(selector, element());
+      return nodes.get(selector);
+    },
+    createElement: element,
+  };
+  const initial = makeTask();
+  let saved = JSON.stringify(initial);
+  let writes = 0;
+  const confirmations = [];
+  const context = vm.createContext({
+    ...taskModel, document, Error,
+    localStorage: {
+      getItem: () => saved,
+      setItem(key, value) {
+        assert.equal(key, STORAGE_KEY);
+        if (saveFails) throw new Error("Storage is full");
+        writes += 1;
+        saved = value;
+      },
+    },
+    window: { confirm(text) { confirmations.push(text); return confirmed; } },
+  });
+  const source = readFileSync(new URL("../src/app.js", import.meta.url), "utf8")
+    .replace(/^import\s*\{[\s\S]*?\}\s*from\s*"\.\/tasks\.js";\s*/, "");
+  vm.runInContext(source, context);
+  return {
+    initial, confirmations, nodes,
+    get tasks() { return JSON.parse(vm.runInContext("JSON.stringify(tasks)", context)); },
+    get saved() { return saved; },
+    get writes() { return writes; },
+    async select(text, readFails = false) {
+      const input = nodes.get("#import-json");
+      input.value = "backup.json";
+      input.files = [{ text: async () => {
+        if (readFails) throw new Error("Could not read file");
+        return text;
+      } }];
+      await input.listeners.change();
+      assert.equal(input.value, "");
+      assert.equal(input.disabled, false);
+    },
+  };
+}
+
+test("import validates before confirmation and leaves the board untouched on failure", async () => {
+  const harness = importHarness();
+  const saved = harness.saved;
+  for (const text of [
+    "{",
+    JSON.stringify({ version: 2, tasks: [] }),
+    JSON.stringify({ version: 1, tasks: [null] }),
+    JSON.stringify({ version: 1, tasks: [...makeTask(), ...makeTask()] }),
+  ]) {
+    await harness.select(text);
+    assert.deepEqual(harness.tasks, harness.initial);
+    assert.equal(harness.saved, saved);
+    assert.equal(harness.writes, 0);
+    assert.equal(harness.confirmations.length, 0);
+    assert.ok(harness.nodes.get("#message").textContent);
+  }
+  await harness.select("", true);
+  assert.equal(harness.saved, saved);
+  assert.deepEqual(harness.tasks, harness.initial);
+  assert.equal(harness.confirmations.length, 0);
+});
+
+test("cancel and failed import save preserve current tasks and storage", async () => {
+  for (const options of [{ confirmed: false }, { saveFails: true }]) {
+    const harness = importHarness(options);
+    const saved = harness.saved;
+    await harness.select(serializeBackup([]));
+    assert.match(harness.confirmations[0], /0 tasks.*Replace the entire current board/);
+    assert.deepEqual(harness.tasks, harness.initial);
+    assert.equal(harness.saved, saved);
+    assert.equal(harness.writes, 0);
+    assert.equal(harness.nodes.get("#todo-count").textContent, "1");
+  }
+});
+
+test("confirmed imports replace storage and render populated and empty boards", async () => {
+  const harness = importHarness();
+  const imported = [{ ...makeTask()[0], id: "restored", status: "done", title: "Café 日本語" }];
+  for (const tasks of [imported, []]) {
+    await harness.select(serializeBackup(tasks));
+    assert.deepEqual(harness.tasks, tasks);
+    assert.deepEqual(JSON.parse(harness.saved), tasks);
+    assert.equal(harness.nodes.get("#todo-count").textContent, "0");
+    assert.equal(harness.nodes.get("#done-count").textContent, String(tasks.length));
+  }
+  assert.equal(harness.writes, 2);
+  assert.match(harness.confirmations[0], /1 task\./);
+  assert.match(harness.confirmations[1], /0 tasks\./);
 });

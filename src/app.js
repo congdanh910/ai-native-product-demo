@@ -1,5 +1,5 @@
 import {
-  STATUSES, backupFilename, createTask, deleteTask, loadTasks, saveTasks,
+  STATUSES, backupFilename, createTask, deleteTask, loadTasks, parseBackup, saveTasks,
   serializeBackup, updateTask,
 } from "./tasks.js";
 
@@ -128,6 +128,35 @@ editForm.addEventListener("submit", (event) => {
 });
 
 document.querySelector("#cancel-edit").addEventListener("click", () => editDialog.close());
+
+const importFile = document.querySelector("#import-json");
+importFile.addEventListener("change", async () => {
+  const file = importFile.files[0];
+  if (!file) {
+    importFile.value = "";
+    return;
+  }
+  importFile.disabled = true;
+  try {
+    const importedTasks = parseBackup(await file.text());
+    const count = importedTasks.length;
+    if (!window.confirm(
+      `This JSON backup contains ${count} task${count === 1 ? "" : "s"}. Replace the entire current board with these tasks? This will overwrite all currently saved tasks.`,
+    )) {
+      showMessage("Import cancelled. The board was not changed.");
+      return;
+    }
+    saveTasks(localStorage, importedTasks);
+    tasks = importedTasks;
+    render();
+    showMessage(`Imported ${count} task${count === 1 ? "" : "s"}`);
+  } catch (error) {
+    showMessage(error instanceof Error ? error.message : "Could not import tasks", true);
+  } finally {
+    importFile.value = "";
+    importFile.disabled = false;
+  }
+});
 
 document.querySelector("#export-json").addEventListener("click", () => {
   try {
