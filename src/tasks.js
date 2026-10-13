@@ -79,7 +79,7 @@ export function parseTasks(raw) {
     validateTask(task);
     if (ids.has(task.id)) throw new Error("Duplicate task id");
     ids.add(task.id);
-    return task;
+    return Object.hasOwn(task, "priority") ? task : { ...task, priority: "Medium" };
   });
 }
 
