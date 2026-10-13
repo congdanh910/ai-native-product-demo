@@ -96,6 +96,7 @@ function render() {
   for (const status of STATUSES) {
     const list = document.querySelector(`#${status}-list`);
     list.replaceChildren();
+    // Sort only this column's view; keep the task array and saved order intact.
     const visible = sortTasks(tasks.filter((task) => task.status === status));
     document.querySelector(`#${status}-count`).textContent = String(visible.length);
     if (visible.length === 0) {

@@ -148,3 +148,46 @@ test("sorting orders priorities, creation times, and lexical IDs without mutatio
   assert.deepEqual(sortTasks(empty), []);
   assert.notStrictEqual(sortTasks(empty), empty);
 });
+
+test("column sorting reflects priority edits and moves without changing saved order", () => {
+  const tasks = [
+    { ...makeTask()[0], id: "todo-low", priority: "Low" },
+    { ...makeTask()[0], id: "todo-medium" },
+    { ...makeTask()[0], id: "doing-high-z", status: "doing", priority: "High" },
+    { ...makeTask()[0], id: "doing-high-a", status: "doing", priority: "High" },
+    { ...makeTask()[0], id: "doing-medium", status: "doing" },
+  ];
+  const columnIds = (current, status) => sortTasks(
+    current.filter((task) => task.status === status),
+  ).map((task) => task.id);
+  assert.deepEqual(columnIds(tasks, "todo"), ["todo-medium", "todo-low"]);
+  assert.deepEqual(columnIds(tasks, "doing"), [
+    "doing-high-a", "doing-high-z", "doing-medium",
+  ]);
+
+  const edited = updateTask(tasks, "todo-low", { priority: "High" }, { now: fixedTime });
+  assert.deepEqual(columnIds(edited, "todo"), ["todo-low", "todo-medium"]);
+  assert.equal(tasks[0].priority, "Low");
+
+  const moved = updateTask(edited, "todo-low", { status: "doing" }, { now: fixedTime });
+  const beforeRender = JSON.stringify(moved);
+  let saved;
+  const storage = {
+    setItem: (key, value) => {
+      assert.equal(key, STORAGE_KEY);
+      saved = value;
+    },
+    getItem: () => saved,
+  };
+  saveTasks(storage, moved);
+  assert.deepEqual(columnIds(moved, "todo"), ["todo-medium"]);
+  assert.deepEqual(columnIds(moved, "doing"), [
+    "doing-high-a", "doing-high-z", "todo-low", "doing-medium",
+  ]);
+  assert.deepEqual(columnIds(moved, "done"), []);
+  assert.equal(moved[0].priority, "High");
+  assert.equal(JSON.stringify(moved), beforeRender);
+  assert.equal(saved, beforeRender);
+  assert.deepEqual(loadTasks(storage), moved);
+  assert.deepEqual(moved.map((task) => task.id), tasks.map((task) => task.id));
+});
