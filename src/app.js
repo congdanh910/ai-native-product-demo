@@ -69,6 +69,7 @@ function createCard(task) {
     editForm.elements.id.value = task.id;
     editForm.elements.title.value = task.title;
     editForm.elements.description.value = task.description;
+    editForm.elements.priority.value = task.priority;
     editDialog.showModal();
   });
   controls.append(edit);
@@ -126,6 +127,7 @@ editForm.addEventListener("submit", (event) => {
   applyChange(
     (current) => updateTask(current, input.get("id"), {
       title: input.get("title"), description: input.get("description"),
+      priority: input.get("priority"),
     }),
     "Task updated",
   );
