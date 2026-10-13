@@ -23,6 +23,8 @@
           <input id="new-title" name="title" maxlength="120" required>
           <label for="new-description">Description</label>
           <textarea id="new-description" name="description" rows="2" maxlength="1000"></textarea>
+          <label for="new-due-date">Due date (optional)</label>
+          <input id="new-due-date" name="dueDate" type="date">
           <button type="submit">Add task</button>
         </form>
       </section>
@@ -50,6 +52,8 @@
         <input id="edit-title" name="title" maxlength="120" required>
         <label for="edit-description">Description</label>
         <textarea id="edit-description" name="description" rows="3" maxlength="1000"></textarea>
+        <label for="edit-due-date">Due date (optional)</label>
+        <input id="edit-due-date" name="dueDate" type="date">
         <div class="dialog-actions">
           <button type="button" id="cancel-edit" class="secondary">Cancel</button>
           <button type="submit">Save changes</button>

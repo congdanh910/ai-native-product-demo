@@ -64,6 +64,7 @@ function createCard(task) {
     editForm.elements.id.value = task.id;
     editForm.elements.title.value = task.title;
     editForm.elements.description.value = task.description;
+    editForm.elements.dueDate.value = task.dueDate ?? "";
     editDialog.showModal();
   });
   controls.append(edit);
@@ -106,6 +107,7 @@ createForm.addEventListener("submit", (event) => {
   applyChange(
     (current) => createTask(current, {
       title: input.get("title"), description: input.get("description"),
+      dueDate: input.get("dueDate") || null,
     }),
     "Task added",
   );
@@ -118,6 +120,7 @@ editForm.addEventListener("submit", (event) => {
   applyChange(
     (current) => updateTask(current, input.get("id"), {
       title: input.get("title"), description: input.get("description"),
+      dueDate: input.get("dueDate") || null,
     }),
     "Task updated",
   );
@@ -125,6 +128,12 @@ editForm.addEventListener("submit", (event) => {
 });
 
 document.querySelector("#cancel-edit").addEventListener("click", () => editDialog.close());
+
+for (const form of [createForm, editForm]) {
+  form.elements.dueDate.addEventListener("invalid", () => {
+    showMessage("Task due date must be a real calendar date in YYYY-MM-DD format, or left empty.", true);
+  });
+}
 
 try {
   tasks = loadTasks(localStorage);
