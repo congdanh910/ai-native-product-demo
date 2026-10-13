@@ -218,6 +218,93 @@ test("TC-7: equal priorities sort by creation time, then ascending ID", async ()
   assert.deepEqual(columns.todo, ["task-z", "task-a", "task-b"]);
 });
 
+test("TC-8: changing priority saves the task and immediately reorders the board", async () => {
+  class Element {
+    constructor() {
+      this.children = [];
+      this.className = "";
+      this.ownText = "";
+      this.listeners = new Map();
+      this.elements = {};
+      this.classList = {
+        toggle: () => {},
+        contains: () => false,
+      };
+    }
+
+    set textContent(value) { this.ownText = String(value); this.children = []; }
+    get textContent() {
+      return this.ownText + this.children.map((child) => child.textContent).join("");
+    }
+    append(...children) { this.children.push(...children); }
+    replaceChildren(...children) { this.children = children; this.ownText = ""; }
+    setAttribute(name, value) { this[name] = String(value); }
+    addEventListener(name, handler) { this.listeners.set(name, handler); }
+    dispatch(name) { this.listeners.get(name)?.({ preventDefault() {} }); }
+    showModal() {}
+    close() {}
+  }
+
+  const elements = new Map([
+    "#create-form", "#edit-form", "#edit-dialog", "#message", "#cancel-edit",
+    "#todo-list", "#doing-list", "#done-list",
+    "#todo-count", "#doing-count", "#done-count",
+  ].map((selector) => [selector, new Element()]));
+  const editForm = elements.get("#edit-form");
+  editForm.elements = Object.fromEntries(["id", "title", "description", "priority"]
+    .map((name) => [name, { value: "" }]));
+
+  const timestamp = "2026-01-01T00:00:00.000Z";
+  const storedTasks = [
+    { id: "task-low", title: "Low task", description: "", status: "todo", priority: "Low",
+      createdAt: timestamp, updatedAt: timestamp },
+    { id: "task-medium", title: "Medium task", description: "", status: "todo", priority: "Medium",
+      createdAt: timestamp, updatedAt: timestamp },
+  ];
+  const writes = [];
+  const previousDocument = globalThis.document;
+  const previousStorage = globalThis.localStorage;
+  const previousFormData = globalThis.FormData;
+  globalThis.document = {
+    querySelector: (selector) => elements.get(selector) ?? null,
+    createElement: () => new Element(),
+  };
+  globalThis.localStorage = {
+    getItem: (key) => key === STORAGE_KEY ? JSON.stringify(storedTasks) : null,
+    setItem: (key, value) => writes.push([key, value]),
+  };
+  globalThis.FormData = class {
+    constructor(form) { this.form = form; }
+    get(name) { return this.form.elements[name]?.value ?? null; }
+  };
+
+  try {
+    await import("../src/app.js?tc-8");
+    const titles = () => elements.get("#todo-list").children.map((card) => card.children[0].textContent);
+    assert.deepEqual(titles(), ["Medium task", "Low task"]);
+
+    const lowCard = elements.get("#todo-list").children[1];
+    const editButton = lowCard.children.at(-1).children.find((control) => control.textContent === "Edit");
+    assert.ok(editButton, "Low task has an edit button");
+    editButton.dispatch("click");
+    editForm.elements.priority.value = "High";
+    editForm.dispatch("submit");
+
+    assert.equal(writes.length, 1, "the change is saved once");
+    assert.equal(writes[0][0], STORAGE_KEY);
+    const savedTasks = JSON.parse(writes[0][1]);
+    assert.equal(savedTasks.find((task) => task.id === "task-low").priority, "High");
+    assert.deepEqual(titles(), ["Low task", "Medium task"], "the board reorders without reloading");
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = previousStorage;
+    if (previousFormData === undefined) delete globalThis.FormData;
+    else globalThis.FormData = previousFormData;
+  }
+});
+
 test("edit and move preserve the original task", () => {
   const original = makeTask();
   const changed = updateTask(original, "task-1", { title: "Updated", status: "doing" }, {
