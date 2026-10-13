@@ -14,6 +14,7 @@ const makeTask = () => createTask([], { title: " First task ", description: " De
 test("create task trims input and starts in todo", () => {
   assert.deepEqual(makeTask(), [{
     id: "task-1", title: "First task", description: "Details", status: "todo",
+    priority: "Medium",
     createdAt: fixedTime.toISOString(), updatedAt: fixedTime.toISOString(),
   }]);
   assert.throws(() => createTask([], { title: "   " }), /Title is required/);
