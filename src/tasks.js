@@ -75,6 +75,30 @@ export function parseTasks(raw) {
   });
 }
 
+export function serializeBackup(tasks) {
+  const validatedTasks = parseTasks(JSON.stringify(tasks));
+  return JSON.stringify({ version: 1, tasks: validatedTasks });
+}
+
+export function parseBackup(raw) {
+  let backup;
+  try {
+    backup = JSON.parse(raw);
+  } catch {
+    throw new Error("Backup contains malformed JSON");
+  }
+  if (!backup || typeof backup !== "object" || Array.isArray(backup)) {
+    throw new Error("Backup must be an object");
+  }
+  if (backup.version !== 1) {
+    throw new Error("Unsupported backup version; expected version 1");
+  }
+  if (!Array.isArray(backup.tasks)) {
+    throw new Error("Backup tasks must be a list");
+  }
+  return parseTasks(JSON.stringify(backup.tasks));
+}
+
 export function loadTasks(storage) {
   const raw = storage.getItem(STORAGE_KEY);
   return raw === null ? [] : parseTasks(raw);
