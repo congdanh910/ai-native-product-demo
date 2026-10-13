@@ -26,6 +26,9 @@
           <button type="submit">Add task</button>
         </form>
       </section>
+      <button type="button" id="export-json" class="secondary">Export JSON</button>
+      <label for="import-json">Import JSON</label>
+      <input type="file" id="import-json" accept=".json,application/json">
       <p id="message" role="status" aria-live="polite"></p>
       <section class="board" aria-label="Task board">
         <div class="column" data-status="todo">

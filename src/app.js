@@ -1,4 +1,7 @@
-import { STATUSES, createTask, deleteTask, loadTasks, saveTasks, updateTask } from "./tasks.js";
+import {
+  STATUSES, backupFilename, createTask, deleteTask, loadTasks, parseBackup, saveTasks,
+  serializeBackup, updateTask,
+} from "./tasks.js";
 
 const createForm = document.querySelector("#create-form");
 const editForm = document.querySelector("#edit-form");
@@ -125,6 +128,58 @@ editForm.addEventListener("submit", (event) => {
 });
 
 document.querySelector("#cancel-edit").addEventListener("click", () => editDialog.close());
+
+const importFile = document.querySelector("#import-json");
+importFile.addEventListener("change", async () => {
+  const file = importFile.files[0];
+  if (!file) {
+    importFile.value = "";
+    return;
+  }
+  importFile.disabled = true;
+  try {
+    const importedTasks = parseBackup(await file.text());
+    const count = importedTasks.length;
+    if (!window.confirm(
+      `This JSON backup contains ${count} task${count === 1 ? "" : "s"}. Replace the entire current board with these tasks? This will overwrite all currently saved tasks.`,
+    )) {
+      showMessage("Import cancelled. The board was not changed.");
+      return;
+    }
+    saveTasks(localStorage, importedTasks);
+    tasks = importedTasks;
+    render();
+    showMessage(`Imported ${count} task${count === 1 ? "" : "s"}`);
+  } catch (error) {
+    showMessage(error instanceof Error ? error.message : "Could not import tasks", true);
+  } finally {
+    importFile.value = "";
+    importFile.disabled = false;
+  }
+});
+
+document.querySelector("#export-json").addEventListener("click", () => {
+  try {
+    const json = serializeBackup(tasks);
+    const filename = backupFilename();
+    const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    try {
+      link.href = url;
+      link.download = filename;
+      document.body.append(link);
+      link.click();
+    } finally {
+      link.remove();
+      // Let the browser start the download before releasing its URL.
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    }
+    showMessage("JSON backup download started");
+  } catch (error) {
+    showMessage(error instanceof Error ? error.message : "Could not export tasks", true);
+  }
+});
 
 try {
   tasks = loadTasks(localStorage);
