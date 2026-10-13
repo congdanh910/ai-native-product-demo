@@ -1,10 +1,11 @@
-import { STATUSES, createTask, deleteTask, loadTasks, saveTasks, updateTask } from "./tasks.js";
+import { STATUSES, createTask, deleteTask, loadTasks, saveTasks, sortTasks, updateTask } from "./tasks.js";
 
 const createForm = document.querySelector("#create-form");
 const editForm = document.querySelector("#edit-form");
 const editDialog = document.querySelector("#edit-dialog");
 const message = document.querySelector("#message");
 let tasks = [];
+let savedTasksInvalid = false;
 
 function showMessage(text, isError = false) {
   message.textContent = text;
@@ -12,6 +13,10 @@ function showMessage(text, isError = false) {
 }
 
 function applyChange(change, successMessage) {
+  if (savedTasksInvalid) {
+    showMessage("Saved tasks are invalid. No changes were made to local storage.", true);
+    return;
+  }
   try {
     const updated = change(tasks);
     saveTasks(localStorage, updated);
@@ -29,6 +34,9 @@ function createCard(task) {
   const title = document.createElement("h3");
   title.textContent = task.title;
   card.append(title);
+  const priority = document.createElement("p");
+  priority.textContent = `Priority: ${task.priority}`;
+  card.append(priority);
   if (task.description) {
     const description = document.createElement("p");
     description.textContent = task.description;
@@ -64,6 +72,7 @@ function createCard(task) {
     editForm.elements.id.value = task.id;
     editForm.elements.title.value = task.title;
     editForm.elements.description.value = task.description;
+    editForm.elements.priority.value = task.priority;
     editDialog.showModal();
   });
   controls.append(edit);
@@ -87,7 +96,8 @@ function render() {
   for (const status of STATUSES) {
     const list = document.querySelector(`#${status}-list`);
     list.replaceChildren();
-    const visible = tasks.filter((task) => task.status === status);
+    // Sort only this column's view; keep the task array and saved order intact.
+    const visible = sortTasks(tasks.filter((task) => task.status === status));
     document.querySelector(`#${status}-count`).textContent = String(visible.length);
     if (visible.length === 0) {
       const empty = document.createElement("p");
@@ -106,6 +116,7 @@ createForm.addEventListener("submit", (event) => {
   applyChange(
     (current) => createTask(current, {
       title: input.get("title"), description: input.get("description"),
+      priority: input.get("priority"),
     }),
     "Task added",
   );
@@ -118,6 +129,7 @@ editForm.addEventListener("submit", (event) => {
   applyChange(
     (current) => updateTask(current, input.get("id"), {
       title: input.get("title"), description: input.get("description"),
+      priority: input.get("priority"),
     }),
     "Task updated",
   );
@@ -129,6 +141,7 @@ document.querySelector("#cancel-edit").addEventListener("click", () => editDialo
 try {
   tasks = loadTasks(localStorage);
 } catch (error) {
+  savedTasksInvalid = true;
   showMessage("Saved tasks are invalid. No changes were made to local storage.", true);
 }
 render();
