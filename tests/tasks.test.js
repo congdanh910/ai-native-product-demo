@@ -2,12 +2,84 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  STORAGE_KEY, createTask, deleteTask, loadTasks, parseTasks, saveTasks, updateTask,
+  STORAGE_KEY, archiveTask, countActiveTasks, createTask, deleteTask, loadTasks,
+  parseTasks, restoreTask, saveTasks, updateTask,
 } from "../src/tasks.js";
 
 const fixedTime = new Date("2026-01-01T00:00:00.000Z");
 const makeTask = () => createTask([], { title: " First task ", description: " Details " }, {
   id: "task-1", now: fixedTime,
+});
+
+test("archive and restore enforce eligibility", () => {
+  const options = { now: new Date("2026-01-02T00:00:00.000Z") };
+  for (const status of ["todo", "doing"]) {
+    const tasks = updateTask(makeTask(), "task-1", { status }, options);
+    assert.throws(() => archiveTask(tasks, "task-1", options), /done/);
+    assert.throws(() => restoreTask(tasks, "task-1", options), /not archived/);
+  }
+  const done = updateTask(makeTask(), "task-1", { status: "done" }, options);
+  assert.throws(() => restoreTask(done, "task-1", options), /not archived/);
+  const archived = archiveTask(done, "task-1", options);
+  assert.throws(() => archiveTask(archived, "task-1", options), /already archived/);
+  assert.throws(() => archiveTask(done, "missing", options), /not found/);
+  assert.throws(() => restoreTask(archived, "missing", options), /not found/);
+});
+
+test("archive and restore preserve history, persist, and keep deletion separate", () => {
+  const done = updateTask(makeTask(), "task-1", { status: "done" }, {
+    now: new Date("2026-01-02T00:00:00.000Z"),
+  });
+  const snapshot = structuredClone(done);
+  Object.freeze(done[0]);
+  Object.freeze(done);
+  const archived = archiveTask(done, "task-1", {
+    now: new Date("2026-01-03T00:00:00.000Z"),
+  });
+  assert.notStrictEqual(archived, done);
+  assert.deepEqual(done, snapshot);
+  assert.deepEqual(archived, [{ ...snapshot[0], archived: true,
+    updatedAt: "2026-01-03T00:00:00.000Z" }]);
+  const memory = new Map();
+  const storage = {
+    getItem: (key) => memory.get(key) ?? null,
+    setItem: (key, value) => memory.set(key, value),
+  };
+  saveTasks(storage, archived);
+  assert.deepEqual(loadTasks(storage), archived);
+  Object.freeze(archived[0]);
+  Object.freeze(archived);
+  const restored = restoreTask(archived, "task-1", {
+    now: new Date("2026-01-04T00:00:00.000Z"),
+  });
+  assert.notStrictEqual(restored, archived);
+  assert.equal(archived[0].archived, true);
+  assert.deepEqual(restored, [{ ...snapshot[0], archived: false,
+    updatedAt: "2026-01-04T00:00:00.000Z" }]);
+  saveTasks(storage, restored);
+  assert.deepEqual(loadTasks(storage), restored);
+  assert.deepEqual(deleteTask(archived, "task-1"), []);
+  assert.equal(archived.length, 1);
+});
+
+test("active counts exclude archives and recover after restore", () => {
+  const tasks = ["todo", "doing", "done"].map((status) => ({
+    ...makeTask()[0], id: status, status,
+  }));
+  const options = { now: new Date("2026-01-02T00:00:00.000Z") };
+  assert.deepEqual(countActiveTasks([]), { todo: 0, doing: 0, done: 0 });
+  assert.deepEqual(countActiveTasks(tasks), { todo: 1, doing: 1, done: 1 });
+  const archived = archiveTask(tasks, "done", options);
+  assert.deepEqual(countActiveTasks(archived), { todo: 1, doing: 1, done: 0 });
+  assert.deepEqual(countActiveTasks(restoreTask(archived, "done", options)), {
+    todo: 1, doing: 1, done: 1,
+  });
+  const legacy = { ...tasks[2] };
+  delete legacy.archived;
+  assert.deepEqual(countActiveTasks([legacy]), { todo: 0, doing: 0, done: 1 });
+  const restored = restoreTask(archiveTask([legacy], "done", options), "done", options);
+  assert.deepEqual(restored[0], { ...legacy, archived: false,
+    updatedAt: options.now.toISOString() });
 });
 
 test("create task trims input and starts in todo", () => {

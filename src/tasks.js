@@ -73,6 +73,29 @@ export function deleteTask(tasks, id) {
   return tasks.filter((task) => task.id !== id);
 }
 
+export function archiveTask(tasks, id, options = {}) {
+  const task = tasks.find((task) => task.id === id);
+  if (!task) throw new Error("Task not found");
+  if (task.archived) throw new Error("Task is already archived");
+  if (task.status !== "done") throw new Error("Only done tasks can be archived");
+  return updateTask(tasks, id, { archived: true }, options);
+}
+
+export function restoreTask(tasks, id, options = {}) {
+  const task = tasks.find((task) => task.id === id);
+  if (!task) throw new Error("Task not found");
+  if (!task.archived) throw new Error("Task is not archived");
+  return updateTask(tasks, id, { archived: false, status: "done" }, options);
+}
+
+export function countActiveTasks(tasks) {
+  const counts = { todo: 0, doing: 0, done: 0 };
+  for (const task of tasks) {
+    if (!task.archived) counts[task.status] += 1;
+  }
+  return counts;
+}
+
 export function parseTasks(raw) {
   const parsed = JSON.parse(raw);
   if (!Array.isArray(parsed)) throw new Error("Saved tasks must be a list");
