@@ -136,6 +136,88 @@ test("TC-5: a High-priority task card displays a styled High label", async () =>
   }
 });
 
+async function renderedColumnTitles(storedTasks, caseId) {
+  class Element {
+    constructor() {
+      this.children = [];
+      this.className = "";
+      this.ownText = "";
+    }
+
+    set textContent(value) { this.ownText = String(value); this.children = []; }
+    get textContent() {
+      return this.ownText + this.children.map((child) => child.textContent).join("");
+    }
+    append(...children) { this.children.push(...children); }
+    replaceChildren(...children) { this.children = children; this.ownText = ""; }
+    setAttribute() {}
+    addEventListener() {}
+  }
+
+  const elements = new Map([
+    "#create-form", "#edit-form", "#edit-dialog", "#message", "#cancel-edit",
+    "#todo-list", "#doing-list", "#done-list",
+    "#todo-count", "#doing-count", "#done-count",
+  ].map((selector) => [selector, new Element()]));
+  const previousDocument = globalThis.document;
+  const previousStorage = globalThis.localStorage;
+  globalThis.document = {
+    querySelector: (selector) => elements.get(selector) ?? null,
+    createElement: () => new Element(),
+  };
+  globalThis.localStorage = {
+    getItem: (key) => key === STORAGE_KEY ? JSON.stringify(storedTasks) : null,
+  };
+
+  try {
+    await import(`../src/app.js?${caseId}`);
+    return Object.fromEntries(["todo", "doing", "done"].map((status) => [
+      status,
+      elements.get(`#${status}-list`).children
+        .filter((card) => card.className === "task-card")
+        .map((card) => card.children[0].textContent),
+    ]));
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = previousStorage;
+  }
+}
+
+test("TC-6: each column renders High, Medium, then Low priority", async () => {
+  const timestamp = "2026-01-01T00:00:00.000Z";
+  const task = (id, status, priority) => ({
+    id, title: id, description: "", status, priority,
+    createdAt: timestamp, updatedAt: timestamp,
+  });
+  const columns = await renderedColumnTitles([
+    task("todo-low", "todo", "Low"),
+    task("doing-medium", "doing", "Medium"),
+    task("todo-medium", "todo", "Medium"),
+    task("doing-low", "doing", "Low"),
+    task("todo-high", "todo", "High"),
+    task("doing-high", "doing", "High"),
+  ], "tc-6");
+
+  assert.deepEqual(columns.todo, ["todo-high", "todo-medium", "todo-low"]);
+  assert.deepEqual(columns.doing, ["doing-high", "doing-medium", "doing-low"]);
+});
+
+test("TC-7: equal priorities sort by creation time, then ascending ID", async () => {
+  const task = (id, createdAt) => ({
+    id, title: id, description: "", status: "todo", priority: "Medium",
+    createdAt, updatedAt: createdAt,
+  });
+  const columns = await renderedColumnTitles([
+    task("task-b", "2026-01-02T00:00:00.000Z"),
+    task("task-a", "2026-01-02T00:00:00.000Z"),
+    task("task-z", "2026-01-01T00:00:00.000Z"),
+  ], "tc-7");
+
+  assert.deepEqual(columns.todo, ["task-z", "task-a", "task-b"]);
+});
+
 test("edit and move preserve the original task", () => {
   const original = makeTask();
   const changed = updateTask(original, "task-1", { title: "Updated", status: "doing" }, {
