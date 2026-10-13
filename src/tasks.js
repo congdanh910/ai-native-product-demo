@@ -1,4 +1,5 @@
 export const STATUSES = Object.freeze(["todo", "doing", "done"]);
+export const PRIORITIES = Object.freeze(["High", "Medium", "Low"]);
 export const STORAGE_KEY = "ai-native-task-board:v1";
 
 export function validateTask(task) {
@@ -16,6 +17,9 @@ export function validateTask(task) {
   }
   if (!STATUSES.includes(task.status)) {
     throw new Error("Task status is invalid");
+  }
+  if (!PRIORITIES.includes(task.priority)) {
+    throw new Error("Task priority is invalid");
   }
   for (const field of ["createdAt", "updatedAt"]) {
     if (typeof task[field] !== "string" || Number.isNaN(Date.parse(task[field]))) {
@@ -35,6 +39,7 @@ export function createTask(tasks, input, { id = crypto.randomUUID(), now = new D
     title,
     description: String(input.description ?? "").trim(),
     status: "todo",
+    priority: Object.hasOwn(input, "priority") ? input.priority : "Medium",
     createdAt: timestamp,
     updatedAt: timestamp,
   });
@@ -53,6 +58,9 @@ export function updateTask(tasks, id, changes, { now = new Date() } = {}) {
   if (Object.hasOwn(changes, "status")) {
     allowed.status = changes.status;
   }
+  if (Object.hasOwn(changes, "priority")) {
+    allowed.priority = changes.priority;
+  }
   return tasks.map((task) => task.id === id
     ? validateTask({ ...task, ...allowed, updatedAt: now.toISOString() })
     : task);
@@ -63,11 +71,25 @@ export function deleteTask(tasks, id) {
   return tasks.filter((task) => task.id !== id);
 }
 
+export function sortTasks(tasks) {
+  return [...tasks].sort((a, b) => {
+    const priorityOrder = PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority);
+    if (priorityOrder !== 0) return priorityOrder;
+    const creationOrder = Date.parse(a.createdAt) - Date.parse(b.createdAt);
+    if (creationOrder !== 0) return creationOrder;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+}
+
 export function parseTasks(raw) {
   const parsed = JSON.parse(raw);
   if (!Array.isArray(parsed)) throw new Error("Saved tasks must be a list");
   const ids = new Set();
   return parsed.map((task) => {
+    if (task && typeof task === "object" && !Array.isArray(task)
+      && !Object.hasOwn(task, "priority")) {
+      task = { ...task, priority: "Medium" };
+    }
     validateTask(task);
     if (ids.has(task.id)) throw new Error("Duplicate task id");
     ids.add(task.id);
