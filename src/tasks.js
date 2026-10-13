@@ -1,4 +1,5 @@
 export const STATUSES = Object.freeze(["todo", "doing", "done"]);
+export const PRIORITY_OPTIONS = Object.freeze(["Low", "Medium", "High"]);
 export const STORAGE_KEY = "ai-native-task-board:v1";
 
 export function validateTask(task) {
@@ -16,6 +17,9 @@ export function validateTask(task) {
   }
   if (!STATUSES.includes(task.status)) {
     throw new Error("Task status is invalid");
+  }
+  if (Object.hasOwn(task, "priority") && !PRIORITY_OPTIONS.includes(task.priority)) {
+    throw new Error(`Invalid priority: ${task.priority}`);
   }
   for (const field of ["createdAt", "updatedAt"]) {
     if (typeof task[field] !== "string" || Number.isNaN(Date.parse(task[field]))) {
@@ -35,6 +39,7 @@ export function createTask(tasks, input, { id = crypto.randomUUID(), now = new D
     title,
     description: String(input.description ?? "").trim(),
     status: "todo",
+    priority: input.priority === undefined ? "Medium" : input.priority,
     createdAt: timestamp,
     updatedAt: timestamp,
   });
@@ -52,6 +57,9 @@ export function updateTask(tasks, id, changes, { now = new Date() } = {}) {
   }
   if (Object.hasOwn(changes, "status")) {
     allowed.status = changes.status;
+  }
+  if (Object.hasOwn(changes, "priority")) {
+    allowed.priority = changes.priority;
   }
   return tasks.map((task) => task.id === id
     ? validateTask({ ...task, ...allowed, updatedAt: now.toISOString() })
