@@ -29,6 +29,11 @@ function createCard(task) {
   const title = document.createElement("h3");
   title.textContent = task.title;
   card.append(title);
+  const priority = document.createElement("span");
+  priority.className = "priority-label";
+  priority.textContent = task.priority;
+  priority.setAttribute("style", "display: inline-block; margin-bottom: .6rem; padding: .2rem .55rem; border-radius: 999px; background: #e5eff7; color: #17324d; font-size: .85rem; font-weight: 700;");
+  card.append(priority);
   if (task.description) {
     const description = document.createElement("p");
     description.textContent = task.description;
