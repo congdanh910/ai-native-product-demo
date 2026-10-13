@@ -21,6 +21,8 @@ button.secondary { background: #e8eef4; color: #17324d; }
 button.danger { background: #a92333; }
 #message { min-height: 1.5rem; color: #14613b; }
 #message.error { color: #a92333; }
+.filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(10rem, 14rem); gap: 1rem; align-items: end; }
+.field { display: grid; gap: .35rem; }
 .board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
 .column { padding: 1rem; min-height: 15rem; }
 .column h2 { display: flex; justify-content: space-between; align-items: center; font-size: 1.1rem; }
@@ -37,4 +39,4 @@ button.danger { background: #a92333; }
 dialog { width: min(480px, calc(100% - 2rem)); padding: 1.5rem; }
 dialog::backdrop { background: #142c3fa8; }
 .dialog-actions { display: flex; justify-content: end; gap: .5rem; margin-top: .7rem; }
-@media (max-width: 760px) { .board { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .board, .filters { grid-template-columns: 1fr; } }
