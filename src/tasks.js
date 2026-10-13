@@ -63,6 +63,20 @@ export function deleteTask(tasks, id) {
   return tasks.filter((task) => task.id !== id);
 }
 
+export function filterTasks(tasks, query = "", status = "all") {
+  const needle = String(query ?? "").trim().toLowerCase();
+  const statusFilter = status === undefined || status === null || status === "" ? "all" : status;
+  if (statusFilter !== "all" && !STATUSES.includes(statusFilter)) {
+    throw new Error("Status filter is invalid");
+  }
+  return tasks.filter((task) => {
+    if (statusFilter !== "all" && task.status !== statusFilter) return false;
+    if (!needle) return true;
+    return String(task.title ?? "").toLowerCase().includes(needle)
+      || String(task.description ?? "").toLowerCase().includes(needle);
+  });
+}
+
 export function parseTasks(raw) {
   const parsed = JSON.parse(raw);
   if (!Array.isArray(parsed)) throw new Error("Saved tasks must be a list");
