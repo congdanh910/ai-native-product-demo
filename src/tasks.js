@@ -1,6 +1,35 @@
 export const STATUSES = Object.freeze(["todo", "doing", "done"]);
 export const STORAGE_KEY = "ai-native-task-board:v1";
 
+function validateDueDate(value) {
+  if (value === null) return value;
+  const error = "Task due date must be a real calendar date in YYYY-MM-DD format or null";
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new Error(error);
+  }
+  const [year, month, day] = value.split("-").map(Number);
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (year < 1 || month < 1 || month > 12 || day < 1 || day > daysInMonth[month - 1]) {
+    throw new Error(error);
+  }
+  return value;
+}
+
+function inputDueDate(value) {
+  return validateDueDate(value === undefined || value === "" ? null : value);
+}
+
+export function isOverdue(task, now) {
+  if (task.status === "done" || task.dueDate == null) return false;
+  const today = [
+    String(now.getFullYear()).padStart(4, "0"),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+  return task.dueDate < today;
+}
+
 export function validateTask(task) {
   if (!task || typeof task !== "object" || Array.isArray(task)) {
     throw new Error("Task must be an object");
@@ -22,7 +51,8 @@ export function validateTask(task) {
       throw new Error(`Task ${field} is invalid`);
     }
   }
-  return task;
+  const dueDate = validateDueDate(Object.hasOwn(task, "dueDate") ? task.dueDate : null);
+  return { ...task, dueDate };
 }
 
 export function createTask(tasks, input, { id = crypto.randomUUID(), now = new Date() } = {}) {
@@ -35,6 +65,7 @@ export function createTask(tasks, input, { id = crypto.randomUUID(), now = new D
     title,
     description: String(input.description ?? "").trim(),
     status: "todo",
+    dueDate: inputDueDate(input.dueDate),
     createdAt: timestamp,
     updatedAt: timestamp,
   });
@@ -53,6 +84,9 @@ export function updateTask(tasks, id, changes, { now = new Date() } = {}) {
   if (Object.hasOwn(changes, "status")) {
     allowed.status = changes.status;
   }
+  if (Object.hasOwn(changes, "dueDate")) {
+    allowed.dueDate = inputDueDate(changes.dueDate);
+  }
   return tasks.map((task) => task.id === id
     ? validateTask({ ...task, ...allowed, updatedAt: now.toISOString() })
     : task);
@@ -68,10 +102,10 @@ export function parseTasks(raw) {
   if (!Array.isArray(parsed)) throw new Error("Saved tasks must be a list");
   const ids = new Set();
   return parsed.map((task) => {
-    validateTask(task);
+    const validated = validateTask(task);
     if (ids.has(task.id)) throw new Error("Duplicate task id");
     ids.add(task.id);
-    return task;
+    return validated;
   });
 }
 
@@ -82,10 +116,11 @@ export function loadTasks(storage) {
 
 export function saveTasks(storage, tasks) {
   const ids = new Set();
-  for (const task of tasks) {
-    validateTask(task);
+  const validated = tasks.map((task) => {
+    const normalized = validateTask(task);
     if (ids.has(task.id)) throw new Error("Duplicate task id");
     ids.add(task.id);
-  }
-  storage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    return normalized;
+  });
+  storage.setItem(STORAGE_KEY, JSON.stringify(validated));
 }

@@ -29,6 +29,7 @@ button.danger { background: #a92333; }
 .task-card { border: 1px solid #dce4ec; border-left: 4px solid #3788b7; border-radius: .5rem; padding: .85rem; overflow-wrap: anywhere; }
 .task-card h3 { margin: 0 0 .4rem; font-size: 1rem; }
 .task-card p { margin: 0 0 .8rem; white-space: pre-wrap; color: #485969; }
+.overdue-label { display: inline-block; border-radius: .25rem; padding: .15rem .4rem; background: #a92333; color: #fff; font-weight: 700; }
 .task-controls { display: flex; flex-wrap: wrap; align-items: end; gap: .4rem; }
 .task-controls label { font-size: .8rem; }
 .task-controls select { display: block; margin-top: .2rem; padding: .4rem; }
