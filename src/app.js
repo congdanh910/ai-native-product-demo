@@ -1,4 +1,4 @@
-import { STATUSES, createTask, deleteTask, loadTasks, saveTasks, updateTask } from "./tasks.js";
+import { STATUSES, createTask, deleteTask, isOverdue, loadTasks, saveTasks, updateTask } from "./tasks.js";
 
 const createForm = document.querySelector("#create-form");
 const editForm = document.querySelector("#edit-form");
@@ -23,7 +23,7 @@ function applyChange(change, successMessage) {
   }
 }
 
-function createCard(task) {
+function createCard(task, now) {
   const card = document.createElement("article");
   card.className = "task-card";
   const title = document.createElement("h3");
@@ -34,6 +34,24 @@ function createCard(task) {
     description.textContent = task.description;
     card.append(description);
   }
+
+  const dueDate = document.createElement("p");
+  if (task.dueDate === null) {
+    dueDate.textContent = "No due date";
+  } else {
+    dueDate.textContent = "Due: ";
+    const date = document.createElement("time");
+    date.dateTime = task.dueDate;
+    date.textContent = task.dueDate;
+    dueDate.append(date);
+  }
+  if (isOverdue(task, now)) {
+    const overdue = document.createElement("span");
+    overdue.className = "overdue-label";
+    overdue.textContent = "Overdue";
+    dueDate.append(" ", overdue);
+  }
+  card.append(dueDate);
 
   const controls = document.createElement("div");
   controls.className = "task-controls";
@@ -85,6 +103,7 @@ function createCard(task) {
 }
 
 function render() {
+  const now = new Date();
   for (const status of STATUSES) {
     const list = document.querySelector(`#${status}-list`);
     list.replaceChildren();
@@ -96,7 +115,7 @@ function render() {
       empty.textContent = "No tasks yet";
       list.append(empty);
     } else {
-      for (const task of visible) list.append(createCard(task));
+      for (const task of visible) list.append(createCard(task, now));
     }
   }
 }
