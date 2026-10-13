@@ -20,6 +20,16 @@ function inputDueDate(value) {
   return validateDueDate(value === undefined || value === "" ? null : value);
 }
 
+export function isOverdue(task, now) {
+  if (task.status === "done" || task.dueDate == null) return false;
+  const today = [
+    String(now.getFullYear()).padStart(4, "0"),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+  return task.dueDate < today;
+}
+
 export function validateTask(task) {
   if (!task || typeof task !== "object" || Array.isArray(task)) {
     throw new Error("Task must be an object");

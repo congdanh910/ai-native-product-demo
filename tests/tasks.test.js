@@ -1,13 +1,42 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { execFileSync } from "node:child_process";
 
 import {
-  STORAGE_KEY, createTask, deleteTask, loadTasks, parseTasks, saveTasks, updateTask,
+  STORAGE_KEY, createTask, deleteTask, isOverdue, loadTasks, parseTasks, saveTasks, updateTask,
 } from "../src/tasks.js";
 
 const fixedTime = new Date("2026-01-01T00:00:00.000Z");
 const makeTask = () => createTask([], { title: " First task ", description: " Details " }, {
   id: "task-1", now: fixedTime,
+});
+
+test("overdue uses the injected date and only flags unfinished tasks due before today", () => {
+  const now = new Date(2026, 0, 2, 12);
+  const task = makeTask()[0];
+  for (const status of ["todo", "doing"]) {
+    assert.equal(isOverdue({ ...task, status, dueDate: "2026-01-01" }, now), true);
+    assert.equal(isOverdue({ ...task, status, dueDate: "2026-01-02" }, now), false);
+    assert.equal(isOverdue({ ...task, status, dueDate: "2026-01-03" }, now), false);
+  }
+  assert.equal(isOverdue({ ...task, status: "done", dueDate: "2026-01-01" }, now), false);
+  assert.equal(isOverdue(task, now), false);
+});
+
+test("overdue changes at local midnight even when the UTC date differs", () => {
+  const moduleUrl = new URL("../src/tasks.js", import.meta.url).href;
+  execFileSync(process.execPath, ["--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import { isOverdue } from ${JSON.stringify(moduleUrl)};
+    const task = { status: "todo", dueDate: "2025-12-31" };
+    const before = new Date("2025-12-31T23:59:59-08:00");
+    const after = new Date("2026-01-01T00:00:00-08:00");
+    assert.equal(before.getDate(), 31);
+    assert.equal(before.getUTCDate(), 1);
+    assert.equal(isOverdue(task, before), false);
+    assert.equal(isOverdue(task, after), true);
+    assert.equal(isOverdue({ ...task, dueDate: "2026-01-01" }, after), false);
+  `], { env: { ...process.env, TZ: "America/Los_Angeles" } });
 });
 
 test("create task trims input and starts in todo", () => {
