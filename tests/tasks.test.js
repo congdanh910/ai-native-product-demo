@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -45,6 +46,29 @@ test("TC-3: stored task without priority parses as Medium", () => {
   assert.deepEqual(parseTasks(JSON.stringify([storedTask])), [
     { ...storedTask, priority: "Medium" },
   ]);
+});
+
+test("TC-4: creation form offers Low, Medium, and High with Medium selected", () => {
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const form = html.match(/<form\b(?=[^>]*\bid=["']create-form["'])[^>]*>([\s\S]*?)<\/form>/i);
+  assert.ok(form, "creation form exists");
+
+  const select = form[1].match(/<select\b(?=[^>]*\bname=["']priority["'])[^>]*>([\s\S]*?)<\/select>/i);
+  assert.ok(select, "creation form has a priority selector");
+
+  const options = [...select[1].matchAll(/<option\b([^>]*)>([\s\S]*?)<\/option>/gi)]
+    .map(([, attributes, label]) => ({
+      value: attributes.match(/\bvalue=["']([^"']*)["']/i)?.[1],
+      label: label.trim(),
+      selected: /\bselected(?:\s|=|$)/i.test(attributes),
+    }));
+
+  assert.deepEqual(options.map(({ value, label }) => ({ value, label })), [
+    { value: "Low", label: "Low" },
+    { value: "Medium", label: "Medium" },
+    { value: "High", label: "High" },
+  ]);
+  assert.deepEqual(options.map((option) => option.selected), [false, true, false]);
 });
 
 test("edit and move preserve the original task", () => {
