@@ -23,6 +23,7 @@ button.danger { background: #a92333; }
 #message.error { color: #a92333; }
 .board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
 .column { padding: 1rem; min-height: 15rem; }
+.archive-view { margin-top: 1.25rem; min-height: auto; }
 .column h2 { display: flex; justify-content: space-between; align-items: center; font-size: 1.1rem; }
 .count { background: #e5eff7; border-radius: 999px; padding: .2rem .55rem; font-size: .85rem; }
 .task-list { display: grid; align-content: start; gap: .75rem; }
