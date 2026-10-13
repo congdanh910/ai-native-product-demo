@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  STORAGE_KEY, createTask, deleteTask, loadTasks, parseBackup, parseTasks, saveTasks,
+  STORAGE_KEY, backupFilename, createTask, deleteTask, loadTasks, parseBackup, parseTasks, saveTasks,
   serializeBackup, updateTask,
 } from "../src/tasks.js";
 
@@ -74,6 +74,21 @@ test("empty board backup roundtrip", () => {
   assert.deepEqual(restored, []);
   assert.notEqual(restored, tasks);
   assert.deepEqual(tasks, []);
+});
+
+test("backup filename uses a deterministic ISO timestamp without colons", () => {
+  const now = new Date("2026-10-13T09:08:07.006Z");
+  assert.equal(backupFilename(now), "task-board-2026-10-13T09-08-07.006Z.json");
+  assert.equal(backupFilename(fixedTime), "task-board-2026-01-01T00-00-00.000Z.json");
+  assert.doesNotMatch(backupFilename(now), /[<>:"/\\|?*]/);
+  assert.equal(now.toISOString(), "2026-10-13T09:08:07.006Z");
+});
+
+test("backup serialization rejects invalid tasks without mutating the input", () => {
+  const tasks = [...makeTask(), ...makeTask()];
+  const original = structuredClone(tasks);
+  assert.throws(() => serializeBackup(tasks), /Duplicate task id/);
+  assert.deepEqual(tasks, original);
 });
 
 test("invalid backups leave existing tasks and storage untouched", () => {

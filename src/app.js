@@ -1,4 +1,7 @@
-import { STATUSES, createTask, deleteTask, loadTasks, saveTasks, updateTask } from "./tasks.js";
+import {
+  STATUSES, backupFilename, createTask, deleteTask, loadTasks, saveTasks,
+  serializeBackup, updateTask,
+} from "./tasks.js";
 
 const createForm = document.querySelector("#create-form");
 const editForm = document.querySelector("#edit-form");
@@ -125,6 +128,29 @@ editForm.addEventListener("submit", (event) => {
 });
 
 document.querySelector("#cancel-edit").addEventListener("click", () => editDialog.close());
+
+document.querySelector("#export-json").addEventListener("click", () => {
+  try {
+    const json = serializeBackup(tasks);
+    const filename = backupFilename();
+    const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    try {
+      link.href = url;
+      link.download = filename;
+      document.body.append(link);
+      link.click();
+    } finally {
+      link.remove();
+      // Let the browser start the download before releasing its URL.
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    }
+    showMessage("JSON backup download started");
+  } catch (error) {
+    showMessage(error instanceof Error ? error.message : "Could not export tasks", true);
+  }
+});
 
 try {
   tasks = loadTasks(localStorage);

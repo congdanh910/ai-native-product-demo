@@ -80,6 +80,10 @@ export function serializeBackup(tasks) {
   return JSON.stringify({ version: 1, tasks: validatedTasks });
 }
 
+export function backupFilename(now = new Date()) {
+  return `task-board-${now.toISOString().replace(/:/g, "-")}.json`;
+}
+
 export function parseBackup(raw) {
   let backup;
   try {
