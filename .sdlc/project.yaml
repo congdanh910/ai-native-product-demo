@@ -1,0 +1,35 @@
+# Onboarding file for the AI-native SDLC team (Option B v3).
+schema_version: 1
+project: task-board
+default_branch: main
+validation_image: node-20
+setup: []                            # no third-party packages
+validation:
+  - name: unit-tests
+    run: ["npm", "test"]
+    timeout_seconds: 300
+  - name: syntax-app
+    run: ["node", "--check", "src/app.js"]
+  - name: syntax-tasks
+    run: ["node", "--check", "src/tasks.js"]
+paths:
+  allowed: ["src/**", "index.html", "styles.css"]
+  tests: ["tests/**"]
+  protected: ["AGENTS.md", "CLAUDE.md", "REVIEW.md"]
+testing:
+  red_check: true
+context:
+  include: ["src/**", "tests/**", "index.html", "styles.css", "README.md", "package.json"]
+  exclude: []
+executors: [codex, claude]
+default_executor: codex
+limits:
+  max_tasks: 6
+  max_changed_files: 10
+stages:
+  spec: gated
+  plan: gated
+  coding: auto
+  review: auto
+artifacts:
+  commit_to_repo: true

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Team Task Board</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script type="module" src="./src/app.js"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap">
+        <p class="eyebrow">AI Native Product Demo</p>
+        <h1>Team Task Board</h1>
+        <p>A small, local board for tracking work from idea to done.</p>
+      </div>
+    </header>
+    <main class="wrap">
+      <section class="panel" aria-labelledby="new-task-heading">
+        <h2 id="new-task-heading">Add a task</h2>
+        <form id="create-form">
+          <label for="new-title">Title <span aria-hidden="true">*</span></label>
+          <input id="new-title" name="title" maxlength="120" required>
+          <label for="new-description">Description</label>
+          <textarea id="new-description" name="description" rows="2" maxlength="1000"></textarea>
+          <button type="submit">Add task</button>
+        </form>
+      </section>
+      <p id="message" role="status" aria-live="polite"></p>
+      <section class="board" aria-label="Task board">
+        <div class="column" data-status="todo">
+          <h2>To do <span class="count" id="todo-count">0</span></h2>
+          <div class="task-list" id="todo-list"></div>
+        </div>
+        <div class="column" data-status="doing">
+          <h2>Doing <span class="count" id="doing-count">0</span></h2>
+          <div class="task-list" id="doing-list"></div>
+        </div>
+        <div class="column" data-status="done">
+          <h2>Done <span class="count" id="done-count">0</span></h2>
+          <div class="task-list" id="done-list"></div>
+        </div>
+      </section>
+    </main>
+    <dialog id="edit-dialog" aria-labelledby="edit-heading">
+      <form id="edit-form">
+        <h2 id="edit-heading">Edit task</h2>
+        <input type="hidden" name="id">
+        <label for="edit-title">Title</label>
+        <input id="edit-title" name="title" maxlength="120" required>
+        <label for="edit-description">Description</label>
+        <textarea id="edit-description" name="description" rows="3" maxlength="1000"></textarea>
+        <div class="dialog-actions">
+          <button type="button" id="cancel-edit" class="secondary">Cancel</button>
+          <button type="submit">Save changes</button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>
