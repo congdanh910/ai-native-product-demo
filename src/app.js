@@ -1,9 +1,21 @@
-import { STATUSES, createTask, deleteTask, loadTasks, saveTasks, updateTask } from "./tasks.js";
+import {
+  STATUSES, createTask, deleteTask, filterTasks, loadTasks, saveTasks, updateTask,
+} from "./tasks.js";
 
 const createForm = document.querySelector("#create-form");
 const editForm = document.querySelector("#edit-form");
 const editDialog = document.querySelector("#edit-dialog");
 const message = document.querySelector("#message");
+const searchQuery = document.querySelector("#search-query");
+const statusFilter = document.querySelector("#status-filter");
+const board = document.querySelector(".board");
+const noResults = document.createElement("p");
+noResults.id = "no-results";
+noResults.className = "empty";
+noResults.setAttribute("role", "status");
+noResults.textContent = "No tasks match your search and status filter. Clear both to see every task.";
+noResults.hidden = true;
+board.before(noResults);
 let tasks = [];
 
 function showMessage(text, isError = false) {
@@ -84,21 +96,36 @@ function createCard(task) {
 }
 
 function render() {
+  const query = searchQuery.value;
+  const statusValue = statusFilter.value;
+  const filtering = query.trim() !== "" || statusValue !== "all";
+  let matches = tasks;
+  try {
+    matches = filterTasks(tasks, query, statusValue);
+  } catch (error) {
+    showMessage(error instanceof Error ? error.message : "Could not filter tasks", true);
+  }
+
   for (const status of STATUSES) {
     const list = document.querySelector(`#${status}-list`);
     list.replaceChildren();
-    const visible = tasks.filter((task) => task.status === status);
+    const visible = matches.filter((task) => task.status === status);
     document.querySelector(`#${status}-count`).textContent = String(visible.length);
     if (visible.length === 0) {
       const empty = document.createElement("p");
       empty.className = "empty";
-      empty.textContent = "No tasks yet";
+      empty.textContent = filtering ? "No matching tasks" : "No tasks yet";
       list.append(empty);
     } else {
       for (const task of visible) list.append(createCard(task));
     }
   }
+
+  noResults.hidden = !(filtering && matches.length === 0);
 }
+
+searchQuery.addEventListener("input", render);
+statusFilter.addEventListener("change", render);
 
 createForm.addEventListener("submit", (event) => {
   event.preventDefault();
