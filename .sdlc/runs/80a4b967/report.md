@@ -10,7 +10,7 @@
 |---|---|---|---|
 | intent.md | v1 | `ceb8346d8b679321` | danhho |
 | spec.md | v1 | `4f4451ebc2c85217` | business_analyst |
-| review.md | v1 | `0937a5d82306c89d` | code_reviewer |
+| review.md | v2 | `93beca6e0e6eeb05` | code_reviewer |
 | plan.md | v2 | `45a0adc4c3c40ca7` | tech_lead_ai |
 
 ## Tasks
